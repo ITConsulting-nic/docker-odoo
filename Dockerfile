@@ -9,8 +9,7 @@ ENV LANG en_US.UTF-8
 # Retrieve the target architecture to install the correct wkhtmltopdf package
 ARG TARGETARCH
 
-# Install some deps, lessc and less-plugin-clean-css, and wkhtmltopdf
-
+# Install some dependencies, lessc, less-plugin-clean-css, and wkhtmltopdf
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive \
     apt-get install -y --no-install-recommends \
@@ -52,7 +51,7 @@ RUN apt-get update && \
     && apt-get install -y --no-install-recommends ./wkhtmltox.deb \
     && rm -rf /var/lib/apt/lists/* wkhtmltox.deb
 
-# install latest postgresql-client
+# Install latest postgresql-client
 RUN echo 'deb http://apt.postgresql.org/pub/repos/apt/ jammy-pgdg main' > /etc/apt/sources.list.d/pgdg.list \
     && GNUPGHOME="$(mktemp -d)" \
     && export GNUPGHOME \
@@ -83,16 +82,22 @@ RUN curl -o odoo.deb -sSL http://nightly.odoo.com/${ODOO_VERSION}/nightly/deb/od
 COPY ./entrypoint.sh /
 COPY ./odoo.conf /etc/odoo/
 
-# Establecer el usuario root para cambiar permisos
+# Copy and set permissions for wait-for-psql.py
+COPY wait-for-psql.py /usr/local/bin/wait-for-psql.py
+
+# Change to root to set permissions
 USER root
 
-# Asegurarse de que el script de entrada tenga los permisos correctos
-RUN chmod +x /entrypoint.sh
-
-# Set permissions and Mount /var/lib/odoo to allow restoring filestore and /mnt/extra-addons for users addons
-RUN chown odoo /etc/odoo/odoo.conf \
+# Set permissions and create directories
+RUN chmod +x /entrypoint.sh /usr/local/bin/wait-for-psql.py \
+    && chown odoo /etc/odoo/odoo.conf \
     && mkdir -p /mnt/extra-addons \
     && chown -R odoo /mnt/extra-addons
+
+# Revert to odoo user
+USER odoo
+
+# Set volumes
 VOLUME ["/var/lib/odoo", "/mnt/extra-addons"]
 
 # Expose Odoo services
@@ -101,16 +106,6 @@ EXPOSE 8069 8071 8072
 # Set the default config file
 ENV ODOO_RC /etc/odoo/odoo.conf
 
-COPY wait-for-psql.py /usr/local/bin/wait-for-psql.py
-
-USER odoo
-
-# Dar permisos de ejecución al script
-RUN chmod +x /usr/local/bin/wait-for-psql.py
-
-
-# Set default user when running the container
-USER odoo
-
+# Entrypoint and command
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["odoo"]
