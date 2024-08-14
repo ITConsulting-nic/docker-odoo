@@ -83,6 +83,15 @@ RUN curl -o odoo.deb -sSL http://nightly.odoo.com/${ODOO_VERSION}/nightly/deb/od
 COPY ./entrypoint.sh /
 COPY ./odoo.conf /etc/odoo/
 
+# Establecer el usuario root para cambiar permisos
+USER root
+
+# Asegurarse de que el script de entrada tenga los permisos correctos
+RUN chmod +x /entrypoint.sh
+
+# Luego cambiar de nuevo al usuario odoo
+USER odoo
+
 # Set permissions and Mount /var/lib/odoo to allow restoring filestore and /mnt/extra-addons for users addons
 RUN chown odoo /etc/odoo/odoo.conf \
     && mkdir -p /mnt/extra-addons \
